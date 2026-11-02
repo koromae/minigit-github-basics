@@ -1,4 +1,3 @@
-
 #include "PathLab.hpp"
 
 #include <filesystem>
@@ -13,7 +12,7 @@ int main() {
         return 1;
     }
 
-    // Test an ordinary repository path.
+    // Test an ordinary repository metadata path.
     std::filesystem::path ordinaryRoot = "project";
 
     std::filesystem::path ordinaryResult =
@@ -24,7 +23,7 @@ int main() {
         return 1;
     }
 
-    // Test a nested repository path.
+    // Test a nested repository metadata path.
     std::filesystem::path nestedRoot = "course/projects/repo";
 
     std::filesystem::path nestedResult =
@@ -35,6 +34,25 @@ int main() {
         return 1;
     }
 
+    // Issue #2: Test HEAD path for an ordinary repository.
+    std::filesystem::path ordinaryHeadResult =
+        minigit::headFilePath(ordinaryRoot);
+
+    if (ordinaryHeadResult != ordinaryRoot / ".minigit" / "HEAD") {
+        std::cerr << "ordinary HEAD path test failed\n";
+        return 1;
+    }
+
+    // Issue #2: Test HEAD path for a nested repository.
+    std::filesystem::path nestedHeadResult =
+        minigit::headFilePath(nestedRoot);
+
+    if (nestedHeadResult != nestedRoot / ".minigit" / "HEAD") {
+        std::cerr << "nested HEAD path test failed\n";
+        return 1;
+    }
+
     std::cout << "All PathLab tests passed\n";
     return 0;
+
 }
