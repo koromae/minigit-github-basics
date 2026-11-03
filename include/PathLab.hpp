@@ -6,7 +6,7 @@
 namespace minigit {
 
 // Returns the metadata directory path inside the repository.
-std::filesystem::path metadataDirectoryPath(
+std::filesystem::path metadataDirectory(
     const std::filesystem::path& root
 );
 

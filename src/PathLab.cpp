@@ -3,7 +3,7 @@
 
 namespace minigit {
 
-std::filesystem::path metadataDirectoryPath(
+std::filesystem::path metadataDirectory(
     const std::filesystem::path& root
 ) {
     return root / ".minigit";
