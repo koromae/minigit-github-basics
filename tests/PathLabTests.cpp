@@ -70,6 +70,27 @@ if (!check(wroteFile && openedFile && actual == expected,
     return 1;
 }
 
+    // Issue 1: Verify metadataDirectory does not create folders.
+    const auto issue1Root = std::filesystem::temp_directory_path()
+                          / "minigit-issue1-mariam-test";
+
+    if (!check(!std::filesystem::exists(issue1Root),
+               "Issue 1 test directory must not already exist")) {
+        return 1;
+    }
+
+    const auto metadataPath = minigit::metadataDirectory(issue1Root);
+
+    if (!check(metadataPath == issue1Root / ".minigit",
+               "metadataDirectory should return the correct path")) {
+        return 1;
+    }
+
+    if (!check(!std::filesystem::exists(issue1Root),
+               "metadataDirectory must not create directories")) {
+        return 1;
+    }
+
     std::cout << "PathLab smoke check passed\n";
     return 0;
 }
