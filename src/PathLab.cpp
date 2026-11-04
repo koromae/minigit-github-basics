@@ -1,3 +1,4 @@
+
 #include "PathLab.hpp"
 #include <fstream>
 #include <system_error>
@@ -7,6 +8,11 @@ namespace minigit {
 std::filesystem::path metadataDirectory(
     const std::filesystem::path& root) {
     return root / ".minigit";
+}
+
+bool isMetadataDirectory(const std::filesystem::path& root,
+                         const std::filesystem::path& candidate) {
+    return candidate == metadataDirectory(root);
 }
 
 std::filesystem::path headFilePath(
