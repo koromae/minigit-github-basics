@@ -1,3 +1,4 @@
+
 #pragma once
 #include <filesystem>
 #include <string>
@@ -8,7 +9,11 @@ namespace minigit {
 // Path construction describes locations; it does not create files or directories.
 //Return the path to the metadata folder inside a repository.
 //This builds the path only; it does not create the folder.
-std::filesystem::path metadataDirectory(const std::filesystem::path& root); 
+std::filesystem::path metadataDirectory(const std::filesystem::path& root);
+
+// Check whether a path is the metadata directory for a repository root.
+bool isMetadataDirectory(const std::filesystem::path& root,
+                         const std::filesystem::path& candidate);
 
 // Returns the HEAD file path inside the repository metadata directory.
 std::filesystem::path headFilePath(const std::filesystem::path& root);
