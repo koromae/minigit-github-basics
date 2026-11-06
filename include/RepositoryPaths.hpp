@@ -1,5 +1,6 @@
 #pragma once
 #include <filesystem>
+#include <string>
 
 namespace minigit {
 
@@ -10,6 +11,9 @@ namespace minigit {
             const std::filesystem::path& projectRoot() const;
 
             const std::filesystem::path& metadataRoot() const;
+
+            // RS-5: Check and clean a file path without opening it.
+            std::string safeRelativeFile(const std::string& argument) const;
 
         private:
             std::filesystem::path projectRoot_;
