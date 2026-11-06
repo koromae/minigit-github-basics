@@ -15,4 +15,14 @@ namespace minigit {
         return metadataRoot_;
     }
 
+    
+    // RP-4
+    std::filesystem::path RepositoryPaths::commitDirectory(const std::string& id) const {
+        return metadataRoot_ / "commits" / id;
+    }
+
+    std::filesystem::path RepositoryPaths::committedFile(const std::string& id,
+                                                     const std::string& path) const {
+        return commitDirectory(id) / "files" / path;
+    }
 } // namespace minigit
