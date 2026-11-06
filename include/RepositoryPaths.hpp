@@ -1,5 +1,6 @@
 #pragma once
 #include <filesystem>
+#include <string>
 
 namespace minigit {
 
@@ -10,6 +11,8 @@ namespace minigit {
             const std::filesystem::path& projectRoot() const;
 
             const std::filesystem::path& metadataRoot() const;
+            // Returns the path to a file inside the staging area of the repository.
+            std::filesystem::path stageFile(const std::string& path) const;
 
         private:
             std::filesystem::path projectRoot_;

@@ -38,6 +38,25 @@ int main() {
     "metadataRoot() should handle nested paths")) {
     return 1;
     }
+    // RP-3: File at the project root directory check that the path is constructed correctly.
+    if (!check(paths.stageFile("notes.txt")
+           == root / ".minigit" / "stage" / "notes.txt",
+           "stageFile() should handle a top-level file")) {
+    return 1;
+    }
+
+    // RP-3: File inside a subfolder check that the path is constucted correctly.
+    if (!check(paths.stageFile("docs/notes.txt")
+           == root / ".minigit" / "stage" / "docs" / "notes.txt",
+           "stageFile() should handle a file in a subfolder")) {
+    return 1;
+    }
+
+    // RP-3: Preserve the filename even when the path has a folder prefix.
+    if (!check(paths.stageFile("docs/notes.txt").filename() == "notes.txt",
+           "stageFile() should preserve the filename")) {
+    return 1;
+    }
 
     std::cout << "RepositoryPaths tests passed\n";
     
