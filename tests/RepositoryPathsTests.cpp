@@ -137,7 +137,30 @@ int main() {
     return 1;
     }
 
-    std::cout << "RepositoryPaths tests passed\n";
+        // RP-2: Ordinary repository root.
+    if (!check(paths.headFile() == root / ".minigit" / "HEAD",
+               "headFile() should return the HEAD path")) {
+        return 1;
+    }
+
+    if (!check(paths.indexFile() == root / ".minigit" / "index.txt",
+               "indexFile() should return the index path")) {
+        return 1;
+    }
+
+    // RP-2: Nested repository root.
+    if (!check(nestedPaths.headFile() ==
+               nestedRoot / ".minigit" / "HEAD",
+               "headFile() should handle nested roots")) {
+        return 1;
+    }
+
+    if (!check(nestedPaths.indexFile() ==
+               nestedRoot / ".minigit" / "index.txt",
+               "indexFile() should handle nested roots")) {
+        return 1;
+    }
+std::cout << "RepositoryPaths tests passed\n";
     
     return 0;
 }

@@ -15,6 +15,14 @@ namespace minigit {
     const std::filesystem::path& RepositoryPaths::metadataRoot() const {
         return metadataRoot_;
     }
+// RP-2: Construct paths without creating files.
+std::filesystem::path RepositoryPaths::headFile() const {
+    return metadataRoot_ / "HEAD";
+}
+
+std::filesystem::path RepositoryPaths::indexFile() const {
+    return metadataRoot_ / "index.txt";
+}
     // Returns the path to a file inside the staging area of the repository.
     std::filesystem::path RepositoryPaths::stageFile(
          const std::string& path) const {

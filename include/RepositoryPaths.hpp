@@ -11,6 +11,9 @@ namespace minigit {
             const std::filesystem::path& projectRoot() const;
 
             const std::filesystem::path& metadataRoot() const;
+            // RP-2: Return paths to the HEAD and index files.
+            std::filesystem::path headFile() const;
+            std::filesystem::path indexFile() const;
             // Returns the path to a file inside the staging area of the repository.
             std::filesystem::path stageFile(const std::string& path) const;
 
