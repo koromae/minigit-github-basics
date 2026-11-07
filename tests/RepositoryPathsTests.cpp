@@ -137,6 +137,78 @@ int main() {
     return 1;
     }
 
+    // RP-6: Test symbolic-link rejection.
+    {
+        namespace fs = std::filesystem;
+
+        const fs::path testRoot =
+            fs::temp_directory_path() / "minigit_rp6_test";
+
+        // Do not delete or overwrite an existing directory.
+        std::error_code ec;
+        const bool created = fs::create_directory(testRoot, ec);
+
+        if (!created || ec) {
+            std::cerr << "FAILED: Could not create RP-6 test directory\n";
+            return 1;
+        }
+
+        const fs::path target = testRoot / "real_folder";
+        fs::create_directory(target, ec);
+
+        if (ec) {
+            fs::remove_all(testRoot);
+            std::cerr << "FAILED: Could not create test folder\n";
+            return 1;
+        }
+
+        const fs::path link = testRoot / "linked_folder";
+        fs::create_directory_symlink(target, link, ec);
+
+        // Windows may require Developer Mode or special permissions.
+        if (ec) {
+            std::cout
+                << "RP-6 symlink test SKIPPED: "
+                << ec.message() << '\n';
+        } else {
+            const minigit::RepositoryPaths rp6Paths(testRoot);
+
+            bool rejected = false;
+
+            try {
+                rp6Paths.safeRelativeFile(
+                    "linked_folder/notes.txt");
+            } catch (const std::runtime_error&) {
+                rejected = true;
+            }
+
+            if (!check(rejected,
+                       "RP-6 should reject symbolic links")) {
+                fs::remove_all(testRoot);
+                return 1;
+            }
+
+            // Confirm that ordinary paths still work.
+            if (!check(
+                    rp6Paths.safeRelativeFile(
+                        "real_folder/notes.txt") ==
+                    "real_folder/notes.txt",
+                    "RP-6 should accept ordinary paths")) {
+                fs::remove_all(testRoot);
+                return 1;
+            }
+
+            std::cout << "RP-6 symbolic-link test passed\n";
+        }
+
+        fs::remove_all(testRoot, ec);
+        if (ec) {
+            std::cerr << "FAILED: RP-6 test cleanup failed\n";
+            return 1;
+        }
+    }
+
+
     std::cout << "RepositoryPaths tests passed\n";
     
     return 0;
