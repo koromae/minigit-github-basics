@@ -12,6 +12,30 @@ bool check(bool condition, const char* message) {
     return true;
     }
 
+    //RP-4 (issue8)
+bool testCommitDirectory() {
+    const std::filesystem::path root = "course/repo";
+    const minigit::RepositoryPaths paths(root);
+    return check(paths.commitDirectory("3") == root / ".minigit" / "commits" / "3",
+                 "commitDirectory(\"3\")");
+}
+
+bool testCommittedFile() {
+    const std::filesystem::path root = "course/repo";
+    const minigit::RepositoryPaths paths(root);
+    return check(paths.committedFile("3", "docs/notes.txt") ==
+                     root / ".minigit" / "commits" / "3" / "files" / "docs" / "notes.txt",
+                 "committedFile(\"3\", \"docs/notes.txt\")");
+}
+
+bool testCommittedFileParent() {
+    const std::filesystem::path root = "course/repo";
+    const minigit::RepositoryPaths paths(root);
+    return check(paths.committedFile("3", "a.txt").parent_path() ==
+                     paths.commitDirectory("3") / "files",
+                 "committedFile(\"3\", \"a.txt\").parent_path()");
+}
+
 int main() {
     // Test 1: Ordinary repository root
     const std::filesystem::path root = "course/repo";
@@ -40,6 +64,11 @@ int main() {
     "metadataRoot() should handle nested paths")) {
     return 1;
     }
+    if (!testCommitDirectory()) return 1;
+    if (!testCommittedFile()) return 1;
+    if (!testCommittedFileParent()) return 1;
+    
+    std::cout << "RepositoryPaths tests passed\n";
     // RP-3: File at the project root directory check that the path is constructed correctly.
     if (!check(paths.stageFile("notes.txt")
            == root / ".minigit" / "stage" / "notes.txt",
