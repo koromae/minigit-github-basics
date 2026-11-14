@@ -88,6 +88,24 @@ int main() {
            "stageFile() should preserve the filename")) {
     return 1;
     }
+    //Issue 13: check that the checkpointDirectory() method constructs 
+    //the correct path for a given ID.
+    if (!check(paths.checkpointDirectory("001") ==
+               root / ".minigit" / "commits" / "001",
+           "checkpointDirectory() should return the path for checkpoint 001")) {
+    return 1;
+    }
+
+    bool rejectedEmptyId = false;
+   try {
+      paths.checkpointDirectory("");
+   } catch (const std::invalid_argument&) {
+    rejectedEmptyId = true;
+   }
+
+   if (!check(rejectedEmptyId, "checkpointDirectory() should reject an empty ID")) {
+    return 1;
+   }
 
     // RS-5: Check that safe paths are cleaned up and accepted.
     if (!check(paths.safeRelativeFile("notes.txt") == "notes.txt",

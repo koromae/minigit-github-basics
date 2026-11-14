@@ -25,6 +25,8 @@ namespace minigit {
 
         // RP-5: Check and clean a file path without opening it.
         std::string safeRelativeFile(const std::string& argument) const;
+        // Issue 13: Return the directory path for a checkpoint ID.
+        std::filesystem::path checkpointDirectory(const std::string& id) const;
 
     private:
         std::filesystem::path projectRoot_;
