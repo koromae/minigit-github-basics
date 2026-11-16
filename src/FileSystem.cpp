@@ -22,5 +22,19 @@ std::string FileSystem::readFile(const std::filesystem::path& path) const {
 
     return contents;
 }
+// FS-18: copy the complete contents of a file, creating any missing directories.
+void FileSystem::copy(const std::filesystem::path& source,
+                      const std::filesystem::path& target) const {
+    if (!std::filesystem::is_regular_file(source)) {
+        throw std::runtime_error("Source file is missing or is not a regular file");
+    }
+
+    const auto parent = target.parent_path();
+    if (!parent.empty()) {
+        std::filesystem::create_directories(parent);
+    }
+
+    std::filesystem::copy_file(source, target);
+}
 
 } // namespace minigit

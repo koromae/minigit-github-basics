@@ -109,7 +109,66 @@ int main() {
                "readFile() should report an error for an empty path")) {
         return 1;
     }
+    // FS-18: Copy a multiline file and preserve the final newline.
+    const auto copySource = directory.path() / "copy-source.txt";
+    const auto copyTarget = directory.path() / "copy-target.txt";
+    const std::string copyContents = "First line\nSecond line\n";
 
+    {
+        std::ofstream sourceFile(copySource, std::ios::binary);
+        sourceFile << copyContents;
+    }
+
+    const minigit::FileSystem copyFileSystem;
+    copyFileSystem.copy(copySource, copyTarget);
+
+    if (!check(copyFileSystem.readFile(copyTarget) == copyContents &&
+               copyFileSystem.readFile(copySource) == copyContents,
+               "copy() should preserve every byte and leave the source unchanged")) {
+        return 1;
+     }
+        // FS-18: Copy an empty file.
+    const auto emptyCopySource = directory.path() / "copy-empty-source.txt";
+    const auto emptyCopyTarget = directory.path() / "copy-empty-target.txt";
+
+    {
+        std::ofstream emptyFile(emptyCopySource, std::ios::binary);
+    }
+
+    copyFileSystem.copy(emptyCopySource, emptyCopyTarget);
+
+    if (!check(std::filesystem::exists(emptyCopyTarget) &&
+               std::filesystem::file_size(emptyCopyTarget) == 0,
+               "copy() should create an empty destination file")) {
+        return 1;
+    
+    }
+    // FS-18: Create missing destination folders.
+    const auto nestedCopyTarget =
+        directory.path() / "new" / "subfolder" / "copy.txt";
+
+    copyFileSystem.copy(copySource, nestedCopyTarget);
+
+    if (!check(std::filesystem::is_directory(nestedCopyTarget.parent_path()) &&
+               copyFileSystem.readFile(nestedCopyTarget) == copyContents,
+               "copy() should create missing folders and preserve file contents")) {
+        return 1;
+    }
+    // FS-18: Reject a missing source without creating the destination.
+    const auto missingCopySource = directory.path() / "missing-copy-source.txt";
+    const auto missingCopyTarget = directory.path() / "missing-copy-target.txt";
+
+    bool missingCopyThrew = false;
+    try {
+        copyFileSystem.copy(missingCopySource, missingCopyTarget);
+    } catch (const std::runtime_error&) {
+        missingCopyThrew = true;
+    }
+
+    if (!check(missingCopyThrew && !std::filesystem::exists(missingCopyTarget),
+               "copy() should throw for a missing source and leave no destination file")) {
+        return 1;
+    }
     std::cout << "FileSystem tests passed\n";
     return 0;
 }
