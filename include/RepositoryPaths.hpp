@@ -28,6 +28,18 @@ namespace minigit {
         // Issue 13: Return the directory path for a checkpoint ID.
         std::filesystem::path checkpointDirectory(const std::string& id) const;
 
+        // RP-14 (#32): Return where a user's file lives in the Working Tree:
+        // projectRoot() / relativePath. Only builds a path; touches nothing on disk.
+        // Throws std::invalid_argument if relativePath is empty or absolute.
+        std::filesystem::path workingFile(const std::string& relativePath) const;
+
+        // RP-15 (#34): Return where a file is saved inside a checkpoint:
+        // checkpointDirectory(id) / "files" / relativePath. Only builds a path.
+        // Throws std::invalid_argument if id is empty, or if relativePath is
+        // empty or absolute.
+        std::filesystem::path commitFile(const std::string& id,
+                                         const std::string& relativePath) const;
+
     private:
         std::filesystem::path projectRoot_;
         std::filesystem::path metadataRoot_;

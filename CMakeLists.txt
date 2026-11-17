@@ -26,4 +26,10 @@ if(BUILD_TESTING)
     add_executable(filesystem_tests tests/FileSystemTests.cpp)
     target_link_libraries(filesystem_tests PRIVATE minigit_paths)
     add_test(NAME filesystem_tests COMMAND filesystem_tests)
+
+    # RP-14 (#32) and RP-15 (#34): Build and run the workingFile() and
+    # commitFile() tests, so CTest checks them before every push.
+    add_executable(working_and_commit_file_tests tests/WorkingAndCommitFileTests.cpp)
+    target_link_libraries(working_and_commit_file_tests PRIVATE minigit_paths)
+    add_test(NAME working_and_commit_file_tests COMMAND working_and_commit_file_tests)
 endif()
