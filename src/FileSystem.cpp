@@ -8,6 +8,15 @@ namespace minigit {
 
 // FS-17: Read everything in the file, or report if it cannot be read.
 std::string FileSystem::readFile(const std::filesystem::path& path) const {
+    // On macOS, an ifstream can "open" a directory and read nothing, without
+    // any error, so readFile() would return "" instead of reporting a problem.
+    // Check for a directory first so every platform reports the error.
+    std::error_code error;
+    if (std::filesystem::is_directory(path, error)) {
+        throw std::runtime_error("Unable to read a directory as a file: " +
+                                 path.string());
+    }
+
     std::ifstream file(path, std::ios::binary);
     if (!file) {
         throw std::runtime_error("Unable to open file for reading: " +

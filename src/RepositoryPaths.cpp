@@ -80,4 +80,40 @@ std::filesystem::path RepositoryPaths::indexFile() const {
                                                      const std::string& path) const {
         return commitDirectory(id) / "files" / path;
     }
+
+    // RP-14 / RP-15: Shared check for a relative file path.
+    // An absolute path would REPLACE the left side of operator/, so
+    // projectRoot() / "/tmp/notes.txt" would silently become /tmp/notes.txt.
+    // has_root_path() also catches "/tmp/notes.txt" on Windows, where it is
+    // not "absolute" (no drive letter) but is still rooted.
+    static std::filesystem::path checkedRelativePath(const std::string& relativePath,
+                                                     const char* functionName) {
+        if (relativePath.empty()) {
+            throw std::invalid_argument(std::string(functionName) +
+                                        ": relative path must not be empty");
+        }
+        const std::filesystem::path relative(relativePath);
+        if (relative.has_root_path()) {
+            throw std::invalid_argument(std::string(functionName) +
+                                        ": path must be relative: " + relativePath);
+        }
+        return relative;
+    }
+
+    // RP-14 (#32): Working Tree location of a file. Built from projectRoot(),
+    // so the root is stored in one place only.
+    std::filesystem::path RepositoryPaths::workingFile(
+        const std::string& relativePath) const {
+        return projectRoot() / checkedRelativePath(relativePath, "workingFile");
+    }
+
+    // RP-15 (#34): Location of a file saved in a checkpoint.
+    // Reuses checkpointDirectory() from Issue 13, which already rejects an
+    // empty ID. Saved files go in files/, so they can never collide with
+    // message.txt or parent.txt in the checkpoint folder.
+    std::filesystem::path RepositoryPaths::commitFile(
+        const std::string& id, const std::string& relativePath) const {
+        const auto relative = checkedRelativePath(relativePath, "commitFile");
+        return checkpointDirectory(id) / "files" / relative;
+    }
 } // namespace minigit
