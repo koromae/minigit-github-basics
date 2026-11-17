@@ -28,7 +28,13 @@ std::filesystem::path RepositoryPaths::indexFile() const {
          const std::string& path) const {
             return metadataRoot_/"stage" / path;
          }
-    
+   //Issue 13: Returns the path to a checkpoint directory inside 
+   //the metadata directory of the repository.
+    std::filesystem::path RepositoryPaths::checkpointDirectory(const std::string& id) const {
+       if (id.empty())
+       throw std::invalid_argument("checkpointDirectory ID must not be empty");
+       return metadataRoot() / "commits" / id; 
+    }
 
     // RS-5: Accept only safe file paths inside the project.
     std::string RepositoryPaths::safeRelativeFile(
