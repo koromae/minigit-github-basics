@@ -9,8 +9,16 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(minigit_paths
     src/PathLab.cpp
     src/RepositoryPaths.cpp
-    src/FileSystem.cpp)
+    src/FileSystem.cpp
+    # MR-1: MiniGitRepository, the class that runs each command.
+    src/MiniGitRepository.cpp)
 target_include_directories(minigit_paths PUBLIC include)
+
+# BUILD-1: The minigit program. main.cpp is the entry point (CLA-4);
+# every class lives in minigit_paths. New class sources (CommandLineApp.cpp,
+# IndexTable.cpp, ...) go in the add_library list above, not here.
+add_executable(minigit src/main.cpp)
+target_link_libraries(minigit PRIVATE minigit_paths)
 
 include(CTest)
 if(BUILD_TESTING)
@@ -32,4 +40,14 @@ if(BUILD_TESTING)
     add_executable(working_and_commit_file_tests tests/WorkingAndCommitFileTests.cpp)
     target_link_libraries(working_and_commit_file_tests PRIVATE minigit_paths)
     add_test(NAME working_and_commit_file_tests COMMAND working_and_commit_file_tests)
+
+    # HDR-1: Check that every M2-M5 interface header compiles.
+    add_executable(header_compile_tests tests/HeaderCompileTests.cpp)
+    target_link_libraries(header_compile_tests PRIVATE minigit_paths)
+    add_test(NAME header_compile_tests COMMAND header_compile_tests)
+
+    # MR-1: MiniGitRepository tests. MR-2 to MR-4 add their checks here too.
+    add_executable(minigit_repository_tests tests/MiniGitRepositoryTests.cpp)
+    target_link_libraries(minigit_repository_tests PRIVATE minigit_paths)
+    add_test(NAME minigit_repository_tests COMMAND minigit_repository_tests)
 endif()
