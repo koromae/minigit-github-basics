@@ -7,7 +7,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
-
+#include <fstream>
 namespace fs = std::filesystem;
 
 namespace {
@@ -91,6 +91,55 @@ void testPathsIsStable() {
     check(&repo.paths() == &repo.paths(),
           "paths() should return a reference to the stored RepositoryPaths");
 }
+// MR-2: An empty project is not an initialized repository.
+void testEmptyProjectIsNotInitialized() {
+    TestDirectory folder;
+    minigit::MiniGitRepository repo(folder.path());
+
+    check(!repo.isInitialized(),
+          "An empty project should not be initialized");
+
+    check(fs::is_empty(folder.path()),
+          "isInitialized should create nothing");
+}
+
+// MR-2: All required directories and files must exist.
+void testRequiredRepositoryParts() {
+    TestDirectory folder;
+    minigit::MiniGitRepository repo(folder.path());
+    const auto root = repo.paths().metadataRoot();
+
+    // Create the required directories.
+    fs::create_directories(root / "stage");
+    fs::create_directories(root / "commits");
+
+    // Create the required files and close each stream.
+    std::ofstream(root / "HEAD").close();
+    std::ofstream(root / "index.txt").close();
+    std::ofstream(root / "next-id.txt").close();
+
+    check(repo.isInitialized(),
+          "A complete layout should be initialized");
+
+    // Remove each required part separately, then restore it.
+    for (const char* name :
+         {"stage", "commits", "HEAD", "index.txt", "next-id.txt"}) {
+        const auto part = root / name;
+        const bool directory = fs::is_directory(part);
+
+        fs::remove(part);
+
+        check(!repo.isInitialized(),
+              "A missing required part should make the layout invalid");
+
+        if (directory) {
+            fs::create_directory(part);
+        } else {
+            std::ofstream(part).close();
+        }
+    }
+}
+
 
 } // namespace
 
@@ -99,6 +148,8 @@ int main() {
     testBuildsRepositoryLocations();
     testCreatesNothingOnDisk();
     testPathsIsStable();
+    testEmptyProjectIsNotInitialized();
+    testRequiredRepositoryParts();
 
     if (failures > 0) {
         std::cerr << failures << " MiniGitRepository check(s) failed\n";
