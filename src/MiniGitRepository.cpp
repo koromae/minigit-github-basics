@@ -1,4 +1,6 @@
 #include "MiniGitRepository.hpp"
+#include <fstream>
+#include <stdexcept>
 
 namespace minigit {
 
@@ -23,8 +25,56 @@ bool MiniGitRepository::isInitialized() const {
         && std::filesystem::is_regular_file(paths_.indexFile())
         && std::filesystem::is_regular_file(root / "next-id.txt");
 }
+// MR-3: Create missing repository parts without overwriting files.
+bool MiniGitRepository::initialize() {
+    // An existing complete repository needs no changes.
+    if (isInitialized()) {
+        return false;
+    }
+
+    const auto root = paths_.metadataRoot();
+
+    // Create the metadata directory and its subdirectories.
+    std::filesystem::create_directories(root / "stage");
+    std::filesystem::create_directories(root / "commits");
+
+    for (const char* name : {"HEAD", "index.txt", "next-id.txt"}) {
+        const auto file = root / name;
+
+        // Preserve existing files and their contents.
+        if (std::filesystem::exists(file)) {
+            if (!std::filesystem::is_regular_file(file)) {
+                throw std::runtime_error(
+                    "Expected a repository file: " + file.string());
+            }
+            continue;
+        }
+
+        // Create only files that are missing.
+        std::ofstream output(file);
+        if (!output) {
+            throw std::runtime_error(
+                "Cannot create repository file: " + file.string());
+        }
+
+        // The first commit ID will be 1.
+        if (file == root / "next-id.txt") {
+            output << "1";
+        }
+
+        output.close();
+        if (!output) {
+            throw std::runtime_error(
+                "Cannot write repository file: " + file.string());
+        }
+    }
+
+    return true;
+}
+
 // MR-2 (isInitialized), 
-//MR-3 (initialize) and MR-4 (requireRepository) add
+//MR-3 (initialize) 
+//and MR-4 (requireRepository) add
 // their bodies here in milestone M2. The other functions follow in M3-M5.
 
 } // namespace minigit

@@ -8,6 +8,7 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+
 namespace fs = std::filesystem;
 
 namespace {
@@ -139,6 +140,71 @@ void testRequiredRepositoryParts() {
         }
     }
 }
+// MR-3: Initialize a fresh repository with the correct contents.
+void testInitializeCreatesLayout() {
+    TestDirectory folder;
+    minigit::MiniGitRepository repo(folder.path());
+    const auto root = repo.paths().metadataRoot();
+
+    check(repo.initialize(),
+          "First initialization should return true");
+    check(repo.isInitialized(),
+          "Initialization should create the complete layout");
+
+    check(fs::is_empty(root / "stage"),
+          "Stage should start empty");
+    check(fs::is_empty(root / "commits"),
+          "Commits should start empty");
+    check(fs::file_size(root / "HEAD") == 0,
+          "HEAD should start empty");
+    check(fs::file_size(root / "index.txt") == 0,
+          "Index should start empty");
+
+    std::ifstream input(root / "next-id.txt");
+    std::string id;
+    std::getline(input, id);
+    check(id == "1", "Next commit ID should start at 1");
+
+    check(!repo.initialize(),
+          "Second initialization should return false");
+}
+
+// MR-3: Repair a partial layout while preserving existing contents.
+void testInitializePreservesExistingFiles() {
+    TestDirectory folder;
+    minigit::MiniGitRepository repo(folder.path());
+    const auto root = repo.paths().metadataRoot();
+
+    fs::create_directories(root);
+
+    // These streams close at the end of each statement.
+    std::ofstream(root / "HEAD") << "7";
+    std::ofstream(root / "index.txt") << "notes.txt";
+    std::ofstream(root / "next-id.txt") << "8";
+
+    check(repo.initialize(),
+          "Repairing a partial layout should return true");
+    check(repo.isInitialized(),
+          "The repaired layout should be complete");
+
+    // Check preservation after another initialization too.
+    check(!repo.initialize(),
+          "The repaired repository should need no more changes");
+
+    std::string text;
+
+    std::ifstream head(root / "HEAD");
+    std::getline(head, text);
+    check(text == "7", "Existing HEAD should be preserved");
+
+    std::ifstream index(root / "index.txt");
+    std::getline(index, text);
+    check(text == "notes.txt", "Existing index should be preserved");
+
+    std::ifstream next(root / "next-id.txt");
+    std::getline(next, text);
+    check(text == "8", "Existing next ID should be preserved");
+}
 
 
 } // namespace
@@ -150,6 +216,8 @@ int main() {
     testPathsIsStable();
     testEmptyProjectIsNotInitialized();
     testRequiredRepositoryParts();
+    testInitializeCreatesLayout();
+    testInitializePreservesExistingFiles();
 
     if (failures > 0) {
         std::cerr << failures << " MiniGitRepository check(s) failed\n";
