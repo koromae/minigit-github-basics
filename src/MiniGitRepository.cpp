@@ -71,6 +71,13 @@ bool MiniGitRepository::initialize() {
 
     return true;
 }
+// MR-4: Reject commands when the repository layout is incomplete.
+void MiniGitRepository::requireRepository() const {
+    if (!isInitialized()) {
+        throw std::runtime_error(
+            "Not a valid MiniGit repository. Run minigit init first.");
+    }
+}
 
 // MR-2 (isInitialized), 
 //MR-3 (initialize) 

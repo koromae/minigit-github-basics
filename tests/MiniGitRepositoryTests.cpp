@@ -8,6 +8,7 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <stdexcept>
 
 namespace fs = std::filesystem;
 
@@ -205,6 +206,43 @@ void testInitializePreservesExistingFiles() {
     std::getline(next, text);
     check(text == "8", "Existing next ID should be preserved");
 }
+// MR-4: Reject an empty or incomplete repository; accept a valid one.
+void testRequireRepository() {
+    TestDirectory folder;
+    minigit::MiniGitRepository repo(folder.path());
+
+    bool threw = false;
+    try {
+        repo.requireRepository();
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+
+    check(threw, "An empty project should be rejected");
+    check(fs::is_empty(folder.path()),
+          "requireRepository should create nothing");
+
+    repo.initialize();
+
+    try {
+        repo.requireRepository();
+    } catch (...) {
+        check(false, "A valid repository should be accepted");
+    }
+
+    fs::remove(repo.paths().headFile());
+
+    threw = false;
+    try {
+        repo.requireRepository();
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+
+    check(threw, "An incomplete repository should be rejected");
+    check(!fs::exists(repo.paths().headFile()),
+          "requireRepository should not recreate HEAD");
+}
 
 
 } // namespace
@@ -218,6 +256,7 @@ int main() {
     testRequiredRepositoryParts();
     testInitializeCreatesLayout();
     testInitializePreservesExistingFiles();
+    testRequireRepository();
 
     if (failures > 0) {
         std::cerr << failures << " MiniGitRepository check(s) failed\n";
