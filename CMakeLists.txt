@@ -11,7 +11,9 @@ add_library(minigit_paths
     src/RepositoryPaths.cpp
     src/FileSystem.cpp
     # MR-1: MiniGitRepository, the class that runs each command.
-    src/MiniGitRepository.cpp)
+    src/MiniGitRepository.cpp
+    #CLA-1 : CommandLineApp, the class that reads the command line.
+    src/CommandLineApp.cpp)
 target_include_directories(minigit_paths PUBLIC include)
 
 # BUILD-1: The minigit program. main.cpp is the entry point (CLA-4);
@@ -50,4 +52,9 @@ if(BUILD_TESTING)
     add_executable(minigit_repository_tests tests/MiniGitRepositoryTests.cpp)
     target_link_libraries(minigit_repository_tests PRIVATE minigit_paths)
     add_test(NAME minigit_repository_tests COMMAND minigit_repository_tests)
+
+    # CLA-1: CommandLineApp tests. CLA-2 and CLA-3 add their checks here too.
+    add_executable(command_line_app_tests tests/CommandLineAppTests.cpp)
+    target_link_libraries(command_line_app_tests PRIVATE minigit_paths)
+    add_test(NAME command_line_app_tests COMMAND command_line_app_tests)
 endif()
