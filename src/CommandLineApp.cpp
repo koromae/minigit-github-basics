@@ -50,7 +50,12 @@ int CommandLineApp::run(const std::vector<std::string>& args)
             return 0;
         }
 
-        // CLA-3: the other commands are added here.
+        if (command == "add" || command == "commit" ||
+            command == "log" || command == "status") {
+            repo_.requireRepository();   // throws outside a valid repository
+            err_ << "Error: " << command << " is not implemented yet\n";
+            return 1;
+        }
 
         err_ << "Error: unknown command " << command << "\n";
         printUsage(err_);
