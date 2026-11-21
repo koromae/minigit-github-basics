@@ -1,11 +1,19 @@
-// BUILD-1: Placeholder entry point so the minigit target builds in CI.
-// CLA-4 replaces this body with:
-//     build a CommandLineApp(current folder, std::cout, std::cerr)
-//     and return app.run(arguments after the program name).
+#include "CommandLineApp.hpp"
 
+#include <filesystem>
 #include <iostream>
+#include <string>
+#include <vector>
 
-int main() {
-    std::cerr << "Error: minigit commands are not implemented yet\n";
-    return 1;
+// CLA-4 (#45): Create the app and pass command-line arguments to it.
+int main(int argc, char* argv[]) {
+    std::vector<std::string> arguments;
+    for (int i = 1; i < argc; ++i) {
+        arguments.emplace_back(argv[i]);
+    }
+
+    minigit::CommandLineApp app(std::filesystem::current_path(),
+                                std::cout,
+                                std::cerr);
+    return app.run(arguments);
 }
