@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-// CLA-4 (#45): Create the app and pass command-line arguments to it.
+// CLA-4: Start MiniGit and pass command-line arguments to CommandLineApp.
 int main(int argc, char* argv[]) {
     std::vector<std::string> arguments;
     for (int i = 1; i < argc; ++i) {
