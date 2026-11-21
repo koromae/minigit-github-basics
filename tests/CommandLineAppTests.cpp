@@ -1,5 +1,5 @@
-// Tests for CLA-1 and CLA-2: the CommandLineApp constructor, run() and init.
-// CLA-3 adds its tests to this file.
+// Tests for CLA-1, CLA-2 and CLA-3: the CommandLineApp constructor, run(),
+// init, and the other commands.
 
 #include "CommandLineApp.hpp"
 
@@ -155,6 +155,52 @@ void testInitRejectsArguments() {
           "init with arguments should create nothing");
 }
 
+// CLA-3 test 1: outside a repository, every other command prints an error,
+// returns 1, and creates nothing.
+void testOtherCommandsRejectedOutsideRepository() {
+    for (const char* command : {"add", "commit", "log", "status"}) {
+        TestDirectory folder;
+        std::ostringstream out;
+        std::ostringstream err;
+        minigit::CommandLineApp app(folder.path(), out, err);
+
+        const int code = app.run(std::vector<std::string>{command});
+
+        check(code == 1, "a command outside a repository should return 1");
+        check(err.str().rfind("Error: ", 0) == 0,
+              "a command outside a repository should print Error: to err");
+        check(!contains(err.str(), "not implemented yet"),
+              "the repository check should come before the not-implemented message");
+        check(out.str().empty(),
+              "a command outside a repository should print nothing to out");
+        check(fs::is_empty(folder.path()),
+              "a command outside a repository should create nothing");
+    }
+}
+
+// CLA-3 test 2: inside a repository, every other command reaches the
+// not-implemented message and returns 1.
+void testOtherCommandsNotImplementedInsideRepository() {
+    for (const char* command : {"add", "commit", "log", "status"}) {
+        TestDirectory folder;
+        std::ostringstream out;
+        std::ostringstream err;
+        minigit::CommandLineApp app(folder.path(), out, err);
+
+        app.run(std::vector<std::string>{"init"});
+        out.str("");
+
+        const int code = app.run(std::vector<std::string>{command});
+
+        check(code == 1, "a command inside a repository should return 1");
+        check(contains(err.str(),
+                       std::string("Error: ") + command + " is not implemented yet"),
+              "a command inside a repository should say it is not implemented");
+        check(out.str().empty(),
+              "a command inside a repository should print nothing to out");
+    }
+}
+
 } // namespace
 
 int main() {
@@ -164,6 +210,8 @@ int main() {
     testInitCreatesRepository();
     testInitTwiceIsHarmless();
     testInitRejectsArguments();
+    testOtherCommandsRejectedOutsideRepository();
+    testOtherCommandsNotImplementedInsideRepository();
 
     if (failures > 0) {
         std::cerr << failures << " CommandLineApp check(s) failed\n";
