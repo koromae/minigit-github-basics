@@ -38,7 +38,8 @@ Everything MiniGit stores lives in `.minigit/` at the project root. `status` and
 ## Rules
 
 - `init` creates `.minigit/`, `stage/`, `commits/`, an empty `HEAD`, an empty `index.txt` and `next-id.txt` containing `1`.
-- Running `init` in a folder that is already a repository creates only what is missing and never overwrites an existing file.
+- Running `init` in a folder that is already a valid repository prints a message and changes nothing.
+- Running `init` when `.minigit/` exists but a part is missing (a damaged repository) prints `Error: ...`, exits 1 and changes nothing. MiniGit never repairs a damaged repository.
 - A folder is a valid repository only if `.minigit/`, `stage/`, `commits/`, `HEAD`, `index.txt` and `next-id.txt` all exist.
 - Commit IDs are whole numbers written as text: `1`, `2`, `3`, ...
 - Files inside a commit are never changed after the commit is created.
