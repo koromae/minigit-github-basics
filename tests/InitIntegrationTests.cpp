@@ -75,6 +75,11 @@ int runMinigit(const fs::path& executable,
         command += " " + arguments;
     }
     command += " 2> \"" + errorFile.string() + "\"";
+#ifdef _WIN32
+    // cmd.exe strips the first and last quote when a command has more than
+    // two, so wrap the whole command once more to keep the inner quotes.
+    command = "\"" + command + "\"";
+#endif
     return std::system(command.c_str());
 }
 
