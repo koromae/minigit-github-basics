@@ -24,6 +24,7 @@ CommandLineApp::CommandLineApp(const std::filesystem::path& projectRoot,
 int CommandLineApp::run(const std::vector<std::string>& args)
 {
     if (args.empty()) {
+        err_ << "Error: no command given\n";
         printUsage(err_);
         return 1;
     }

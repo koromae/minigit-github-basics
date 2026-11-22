@@ -50,7 +50,8 @@ private:
     fs::path path_;
 };
 
-// CLA-1 test 1: no command prints usage to err, nothing to out, and returns 1.
+// CLA-1 test 1: no command prints "Error:" and usage to err, nothing to out,
+// and returns 1 (HW12).
 void testNoCommandPrintsUsage() {
     TestDirectory folder;
     std::ostringstream out;
@@ -60,6 +61,8 @@ void testNoCommandPrintsUsage() {
     const int code = app.run(std::vector<std::string>{});
 
     check(code == 1, "no command should return 1");
+    check(err.str().rfind("Error: ", 0) == 0,
+          "no command should start with Error: on err");
     check(contains(err.str(), "Usage"),
           "no command should print usage to err");
     check(out.str().empty(),
@@ -155,6 +158,31 @@ void testInitRejectsArguments() {
           "init with arguments should create nothing");
 }
 
+// CLA-2 test 4: init in a damaged repository (HEAD missing) prints "Error:",
+// returns 1 and does not recreate HEAD (HW12).
+void testInitRejectsDamagedRepository() {
+    TestDirectory folder;
+    std::ostringstream out;
+    std::ostringstream err;
+    minigit::CommandLineApp app(folder.path(), out, err);
+
+    app.run(std::vector<std::string>{"init"});
+    fs::remove(folder.path() / ".minigit" / "HEAD");
+    out.str("");
+
+    const int code = app.run(std::vector<std::string>{"init"});
+
+    check(code == 1, "init in a damaged repository should return 1");
+    check(err.str().rfind("Error: ", 0) == 0,
+          "init in a damaged repository should start with Error: on err");
+    check(contains(err.str(), "HEAD"),
+          "the error should name the missing HEAD");
+    check(out.str().empty(),
+          "init in a damaged repository should print nothing to out");
+    check(!fs::exists(folder.path() / ".minigit" / "HEAD"),
+          "init in a damaged repository should not recreate HEAD");
+}
+
 // CLA-3 test 1: outside a repository, every other command prints an error,
 // returns 1, and creates nothing.
 void testOtherCommandsRejectedOutsideRepository() {
@@ -210,6 +238,7 @@ int main() {
     testInitCreatesRepository();
     testInitTwiceIsHarmless();
     testInitRejectsArguments();
+    testInitRejectsDamagedRepository();
     testOtherCommandsRejectedOutsideRepository();
     testOtherCommandsNotImplementedInsideRepository();
 

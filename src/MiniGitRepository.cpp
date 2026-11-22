@@ -1,8 +1,50 @@
 #include "MiniGitRepository.hpp"
 #include <fstream>
 #include <stdexcept>
+#include <string>
 
 namespace minigit {
+
+namespace {
+
+// MR-3: Write a new repository file, reporting any failure.
+void writeNewFile(const std::filesystem::path& file, const std::string& text) {
+    std::ofstream output(file);
+    if (!output) {
+        throw std::runtime_error("Cannot create repository file: " + file.string());
+    }
+    output << text;
+    output.close();
+    if (!output) {
+        throw std::runtime_error("Cannot write repository file: " + file.string());
+    }
+}
+
+// MR-3: Name the first part of the layout that is missing, for the
+// "damaged repository" error.
+std::string firstMissingPart(const RepositoryPaths& paths) {
+    namespace fs = std::filesystem;
+    const auto root = paths.metadataRoot();
+
+    if (!fs::is_directory(root)) {
+        return ".minigit is not a folder";
+    }
+    if (!fs::is_directory(root / "stage")) {
+        return ".minigit/stage is missing";
+    }
+    if (!fs::is_directory(root / "commits")) {
+        return ".minigit/commits is missing";
+    }
+    if (!fs::is_regular_file(paths.headFile())) {
+        return ".minigit/HEAD is missing";
+    }
+    if (!fs::is_regular_file(paths.indexFile())) {
+        return ".minigit/index.txt is missing";
+    }
+    return ".minigit/next-id.txt is missing";
+}
+
+} // namespace
 
 // MR-1: Store the project root in RepositoryPaths. Only builds paths;
 // nothing is created on disk until initialize() (MR-3) runs.
@@ -25,7 +67,9 @@ bool MiniGitRepository::isInitialized() const {
         && std::filesystem::is_regular_file(paths_.indexFile())
         && std::filesystem::is_regular_file(root / "next-id.txt");
 }
-// MR-3: Create missing repository parts without overwriting files.
+// MR-3: Create a new repository in an empty project. A complete repository
+// is left unchanged (returns false). A damaged one, where .minigit exists but
+// a part is missing, is an error and is never repaired (HW12).
 bool MiniGitRepository::initialize() {
     // An existing complete repository needs no changes.
     if (isInitialized()) {
@@ -34,43 +78,25 @@ bool MiniGitRepository::initialize() {
 
     const auto root = paths_.metadataRoot();
 
+    // .minigit exists but is incomplete: report the first missing part.
+    if (std::filesystem::exists(root)) {
+        throw std::runtime_error(
+            "Damaged MiniGit repository: " + firstMissingPart(paths_) +
+            ". Fix or remove .minigit, then run minigit init again.");
+    }
+
     // Create the metadata directory and its subdirectories.
     std::filesystem::create_directories(root / "stage");
     std::filesystem::create_directories(root / "commits");
 
-    for (const char* name : {"HEAD", "index.txt", "next-id.txt"}) {
-        const auto file = root / name;
-
-        // Preserve existing files and their contents.
-        if (std::filesystem::exists(file)) {
-            if (!std::filesystem::is_regular_file(file)) {
-                throw std::runtime_error(
-                    "Expected a repository file: " + file.string());
-            }
-            continue;
-        }
-
-        // Create only files that are missing.
-        std::ofstream output(file);
-        if (!output) {
-            throw std::runtime_error(
-                "Cannot create repository file: " + file.string());
-        }
-
-        // The first commit ID will be 1.
-        if (file == root / "next-id.txt") {
-            output << "1";
-        }
-
-        output.close();
-        if (!output) {
-            throw std::runtime_error(
-                "Cannot write repository file: " + file.string());
-        }
-    }
+    // Create the three starting files. The first commit ID will be 1.
+    writeNewFile(paths_.headFile(), "");
+    writeNewFile(paths_.indexFile(), "");
+    writeNewFile(root / "next-id.txt", "1");
 
     return true;
 }
+
 // MR-4: Reject commands when the repository layout is incomplete.
 void MiniGitRepository::requireRepository() const {
     if (!isInitialized()) {
@@ -78,10 +104,5 @@ void MiniGitRepository::requireRepository() const {
             "Not a valid MiniGit repository. Run minigit init first.");
     }
 }
-
-// MR-2 (isInitialized), 
-//MR-3 (initialize) 
-//and MR-4 (requireRepository) add
-// their bodies here in milestone M2. The other functions follow in M3-M5.
 
 } // namespace minigit

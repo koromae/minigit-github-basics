@@ -63,6 +63,26 @@ int runInit(const fs::path& executable)
     return std::system(command.c_str());
 }
 
+// HW12: Run minigit with the given arguments (may be empty) in the current
+// folder, sending its error output to errorFile. Returns std::system's result:
+// only "== 0" or "!= 0" is portable across Windows, Mac and Linux.
+int runMinigit(const fs::path& executable,
+               const std::string& arguments,
+               const fs::path& errorFile)
+{
+    std::string command = "\"" + executable.string() + "\"";
+    if (!arguments.empty()) {
+        command += " " + arguments;
+    }
+    command += " 2> \"" + errorFile.string() + "\"";
+    return std::system(command.c_str());
+}
+
+bool startsWithError(const fs::path& errorFile)
+{
+    return readText(errorFile).rfind("Error: ", 0) == 0;
+}
+
 class CurrentFolder {
 public:
     explicit CurrentFolder(const fs::path& folder)
@@ -144,6 +164,47 @@ int main(int argc, char* argv[])
           "running init again should preserve stage files");
     check(readText(folder.path() / "outside.txt") == "unchanged",
           "running init should not change files outside .minigit");
+
+    // HW12: No command (just minigit) prints "Error: ..." and fails.
+    TestDirectory errors;
+    const fs::path errorFile = errors.path() / "stderr.txt";
+    {
+        CurrentFolder projectFolder(folder.path());
+        check(runMinigit(executable, "", errorFile) != 0,
+              "minigit with no command should fail");
+    }
+    check(startsWithError(errorFile),
+          "minigit with no command should print Error:");
+
+    // HW12: Another command (status) outside a repository prints "Error: ..."
+    // and fails, creating nothing.
+    {
+        TestDirectory empty;
+        {
+            CurrentFolder projectFolder(empty.path());
+            check(runMinigit(executable, "status", errorFile) != 0,
+                  "minigit status outside a repository should fail");
+        }
+        check(startsWithError(errorFile),
+              "minigit status outside a repository should print Error:");
+        check(fs::is_empty(empty.path()),
+              "minigit status outside a repository should create nothing");
+    }
+
+    // HW12: A damaged .minigit (HEAD missing) prints "Error: ..." and fails,
+    // without repairing anything.
+    fs::remove(root / "HEAD");
+    {
+        CurrentFolder projectFolder(folder.path());
+        check(runMinigit(executable, "init", errorFile) != 0,
+              "minigit init in a damaged repository should fail");
+    }
+    check(startsWithError(errorFile),
+          "minigit init in a damaged repository should print Error:");
+    check(!fs::exists(root / "HEAD"),
+          "minigit init should not recreate a missing HEAD");
+    check(readText(root / "index.txt") == "custom-index",
+          "minigit init should leave a damaged repository unchanged");
 
     if (failures > 0) {
         std::cerr << failures << " init integration check(s) failed\n";

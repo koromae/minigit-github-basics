@@ -170,8 +170,9 @@ void testInitializeCreatesLayout() {
           "Second initialization should return false");
 }
 
-// MR-3: Repair a partial layout while preserving existing contents.
-void testInitializePreservesExistingFiles() {
+// MR-3: A damaged layout (.minigit exists but parts are missing) is rejected
+// and never repaired; existing contents stay exactly as they were (HW12).
+void testInitializeRejectsDamagedRepository() {
     TestDirectory folder;
     minigit::MiniGitRepository repo(folder.path());
     const auto root = repo.paths().metadataRoot();
@@ -183,29 +184,56 @@ void testInitializePreservesExistingFiles() {
     std::ofstream(root / "index.txt") << "notes.txt";
     std::ofstream(root / "next-id.txt") << "8";
 
-    check(repo.initialize(),
-          "Repairing a partial layout should return true");
-    check(repo.isInitialized(),
-          "The repaired layout should be complete");
+    std::string message;
+    try {
+        repo.initialize();
+    } catch (const std::runtime_error& error) {
+        message = error.what();
+    }
 
-    // Check preservation after another initialization too.
-    check(!repo.initialize(),
-          "The repaired repository should need no more changes");
+    check(!message.empty(),
+          "A damaged repository should make initialize() throw");
+    check(message.find("stage") != std::string::npos,
+          "The error should name the first missing part (stage)");
+    check(!fs::exists(root / "stage") && !fs::exists(root / "commits"),
+          "A damaged repository should not be repaired");
 
     std::string text;
 
     std::ifstream head(root / "HEAD");
     std::getline(head, text);
-    check(text == "7", "Existing HEAD should be preserved");
+    check(text == "7", "Existing HEAD should be unchanged");
 
     std::ifstream index(root / "index.txt");
     std::getline(index, text);
-    check(text == "notes.txt", "Existing index should be preserved");
+    check(text == "notes.txt", "Existing index should be unchanged");
 
     std::ifstream next(root / "next-id.txt");
     std::getline(next, text);
-    check(text == "8", "Existing next ID should be preserved");
+    check(text == "8", "Existing next ID should be unchanged");
 }
+
+// MR-3: A complete repository with HEAD deleted is damaged too.
+void testInitializeRejectsMissingHead() {
+    TestDirectory folder;
+    minigit::MiniGitRepository repo(folder.path());
+
+    repo.initialize();
+    fs::remove(repo.paths().headFile());
+
+    std::string message;
+    try {
+        repo.initialize();
+    } catch (const std::runtime_error& error) {
+        message = error.what();
+    }
+
+    check(message.find("HEAD") != std::string::npos,
+          "A missing HEAD should be reported by name");
+    check(!fs::exists(repo.paths().headFile()),
+          "initialize() should not recreate a missing HEAD");
+}
+
 // MR-4: Reject an empty or incomplete repository; accept a valid one.
 void testRequireRepository() {
     TestDirectory folder;
@@ -255,7 +283,8 @@ int main() {
     testEmptyProjectIsNotInitialized();
     testRequiredRepositoryParts();
     testInitializeCreatesLayout();
-    testInitializePreservesExistingFiles();
+    testInitializeRejectsDamagedRepository();
+    testInitializeRejectsMissingHead();
     testRequireRepository();
 
     if (failures > 0) {
