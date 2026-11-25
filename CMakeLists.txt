@@ -10,6 +10,7 @@ add_library(minigit_paths
     src/PathLab.cpp
     src/RepositoryPaths.cpp
     src/FileSystem.cpp
+    src/IndexTable.cpp
     # MR-1: MiniGitRepository, the class that runs each command.
     src/MiniGitRepository.cpp
     #CLA-1 : CommandLineApp, the class that reads the command line.
@@ -36,6 +37,11 @@ if(BUILD_TESTING)
     add_executable(filesystem_tests tests/FileSystemTests.cpp)
     target_link_libraries(filesystem_tests PRIVATE minigit_paths)
     add_test(NAME filesystem_tests COMMAND filesystem_tests)
+
+    # IT-1: Build and run the IndexTable constructor test.
+    add_executable(index_table_tests tests/IndexTableTests.cpp)
+    target_link_libraries(index_table_tests PRIVATE minigit_paths)
+    add_test(NAME index_table_tests COMMAND index_table_tests)
 
     # RP-14 (#32) and RP-15 (#34): Build and run the workingFile() and
     # commitFile() tests, so CTest checks them before every push.
