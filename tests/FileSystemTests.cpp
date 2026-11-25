@@ -169,6 +169,18 @@ int main() {
                "copy() should throw for a missing source and leave no destination file")) {
         return 1;
     }
+    // FS-20: Copy again after changing the source.
+const std::string updatedContents = "Updated\n";
+if (!check(writeTestFile(copySource, updatedContents),
+           "test setup should update the source file")) {
+    return 1;
+}
+
+copyFileSystem.copy(copySource, copyTarget);
+if (!check(copyFileSystem.readFile(copyTarget) == updatedContents,
+           "copy() should replace the existing destination")) {
+    return 1;
+}
     std::cout << "FileSystem tests passed\n";
     return 0;
 }
