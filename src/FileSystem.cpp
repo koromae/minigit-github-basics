@@ -42,24 +42,8 @@ void FileSystem::copy(const std::filesystem::path& source,
     if (!parent.empty()) {
         std::filesystem::create_directories(parent);
     }
-
-    std::filesystem::copy_file(source, target);
-}
-// Copy the file and create any missing destination folders.
-void FileSystem::copy(const std::filesystem::path& source,
-                      const std::filesystem::path& target) const {
-    if (!std::filesystem::is_regular_file(source)) {
-        throw std::runtime_error("Source file is missing or is not a regular file");
-    }
-
-    const auto parent = target.parent_path();
-    if (!parent.empty()) {
-        std::filesystem::create_directories(parent);
-    }
-
-    // FS-20: Replace the destination when it already exists.
-    std::filesystem::copy_file(
-        source, target, std::filesystem::copy_options::overwrite_existing);
+  //Fs-20: Replace the destination when it already exists.
+    std::filesystem::copy_file(source, target,std::filesystem::copy_options::overwrite_existing);
 }
 
 
