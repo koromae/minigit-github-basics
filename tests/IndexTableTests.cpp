@@ -1,6 +1,4 @@
 #include "IndexTable.hpp"
-#include <chrono>
-#include <filesystem>
 
 #include <chrono>
 #include <filesystem>
@@ -69,21 +67,39 @@ int main() {
     const minigit::FileSystem files;
     const minigit::IndexTable index(paths, files);
 
-    std::cout << "IndexTable constructor test passed\n";
+    // IT-2: Read several paths from the index.
+    writeText(paths.indexFile(), "first.txt\nfolder/second.txt\nthird.txt\n");
+    check(index.read() == std::vector<std::string>{
+                              "first.txt", "folder/second.txt", "third.txt"},
+          "read() should return all paths in order");
+
+    // IT-2: An empty index should return no paths.
+    writeText(paths.indexFile(), "");
+    check(index.read().empty(), "read() should return an empty vector");
+
+    // IT-2: Blank lines should not become paths.
+    writeText(paths.indexFile(), "first.txt\n\n\r\nsecond.txt\n\n");
+    check(index.read() ==
+              std::vector<std::string>{"first.txt", "second.txt"},
+          "read() should ignore blank lines");
+
+    // IT-2: Remove carriage returns from Windows lines and keep the file intact.
+    const std::string windowsLines = "first.txt\r\nsecond.txt\r\n";
+    writeText(paths.indexFile(), windowsLines);
+    check(index.read() == std::vector<std::string>{"first.txt", "second.txt"},
+          "read() should remove trailing carriage returns");
+    check(readText(paths.indexFile()) == windowsLines,
+          "read() should not change the index file");
+
     // IT-4: Check sorting, duplicate removal, and forward slashes.
-    const auto id = std::chrono::steady_clock::now().time_since_epoch().count();
-    const auto root = std::filesystem::temp_directory_path() /
-                  ("minigit-it4-" + std::to_string(id));
-    const minigit::RepositoryPaths writePaths(root);
-    const minigit::IndexTable writeIndex(writePaths, files);
+    index.write({"z.txt", "folder\\a.txt", "a.txt", "folder/a.txt"});
+    check(readText(paths.indexFile()) == "a.txt\nfolder/a.txt\nz.txt\n",
+          "write() should save sorted, unique paths with forward slashes");
 
-    writeIndex.write({"z.txt", "folder\\a.txt", "a.txt", "folder/a.txt"});
-    const auto contents = files.readFile(writePaths.indexFile());
-    std::filesystem::remove_all(root);
-
-    if (contents != "a.txt\nfolder/a.txt\nz.txt\n") {
-    std::cerr << "IT-4 failed: index contents differ from expected\n";
-    return 1;
-}
+    if (failures != 0) {
+        std::cerr << failures << " IndexTable test(s) failed\n";
+        return 1;
+    }
+    std::cout << "IndexTable tests passed\n";
     return 0;
 }
