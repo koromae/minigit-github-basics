@@ -44,6 +44,20 @@ Everything MiniGit stores lives in `.minigit/` at the project root. `status` and
 - Commit IDs are whole numbers written as text: `1`, `2`, `3`, ...
 - Files inside a commit are never changed after the commit is created.
 
+## Stage and index rules
+
+- `stage/` holds copies of the files added by `add`.
+- `add` copies the file into `stage/` and keeps the same folder names and relative path. For example, `add src/main.cpp` saves `.minigit/stage/src/main.cpp`.
+- Adding the same file again replaces the old copy with the new one.
+- `add` never changes the original file.
+- `index.txt` holds the relative paths of the added files, one path per line.
+- Each path in `index.txt` ends with a new line.
+- Paths in `index.txt` are in A to Z order, and the same path never appears more than once.
+- Paths use `/` between folder names, for example `README.md`, `src/main.cpp`, `src/test.cpp`.
+- When reading `index.txt`, empty lines are ignored and a `\r` at the end of a path is removed.
+- An empty `index.txt` means there are no paths to read.
+- `add` checks the file before saving anything. If a check fails, MiniGit prints `Error: ...`, exits 1 and changes neither `stage/` nor `index.txt`.
+
 ## Where each path comes from
 
 | Path | RepositoryPaths function |
