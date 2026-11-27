@@ -2,6 +2,7 @@
 
 #include "CommitStore.hpp"
 #include "FileSystem.hpp"
+#include "IndexTable.hpp"
 #include "RepositoryPaths.hpp"
 
 #include <filesystem>
@@ -17,6 +18,11 @@ class MiniGitRepository {
 public:
     // MR-1 (M2): Store the project root. Creates nothing on disk.
     explicit MiniGitRepository(const std::filesystem::path& projectRoot);
+
+    // MR-5b (M3): index_ keeps references to this object's own paths_ and
+    // files_, so a copy would point at the wrong object. Copying is disabled.
+    MiniGitRepository(const MiniGitRepository&) = delete;
+    MiniGitRepository& operator=(const MiniGitRepository&) = delete;
 
     // MR-1 (M2): The repository locations, e.g. for printing the .minigit path.
     const RepositoryPaths& paths() const;
@@ -40,9 +46,12 @@ public:
     // Public so it can be tested on its own; addFile() (MR-5b) calls it.
     std::string checkFileToAdd(const std::string& argument) const;
 
-    // MR-5 (M3): Check the path, copy the working file into the Stage and
-    // add the path to index.txt if it is not tracked yet.
-    void addFile(const std::string& argument);
+    // MR-5b (M3): Add one file: check the repository and the file, copy the
+    // working file into the Stage (replacing an older staged copy) and add its
+    // path to index.txt if it is not tracked yet. Returns the clean relative
+    // path, e.g. "notes.txt" for "./notes.txt". Throws std::runtime_error and
+    // changes nothing if any check fails.
+    std::string addFile(const std::string& argument);
 
     // MR-6 (M4): Create a commit from the Stage and return its new ID.
     // Throws if the message or the Stage is empty.
@@ -57,8 +66,10 @@ public:
 private:
     RepositoryPaths paths_;
     FileSystem files_;
+    // MR-5b (M3): Reads and writes index.txt. Declared after paths_ and
+    // files_ because it keeps references to them.
+    IndexTable index_;
     // Added in their milestones, once their constructors exist:
-    //   IndexTable  index_;    (M3, IT-1)
     //   WorkingTree tree_;     (M4, WT-1)
     //   CommitStore commits_;  (M4, CS-1)
 };
