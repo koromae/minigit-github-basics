@@ -33,6 +33,13 @@ public:
     // MR-4 (M2): Throw if the folder is not a valid repository.
     void requireRepository() const;
 
+    // MR-5a (M3): Check the file a user wants to add and return its clean
+    // relative path (with / separators). Throws std::runtime_error if the path
+    // is empty, absolute, outside the project or inside .minigit, if the file
+    // does not exist, or if it is a folder. Creates and changes nothing.
+    // Public so it can be tested on its own; addFile() (MR-5b) calls it.
+    std::string checkFileToAdd(const std::string& argument) const;
+
     // MR-5 (M3): Check the path, copy the working file into the Stage and
     // add the path to index.txt if it is not tracked yet.
     void addFile(const std::string& argument);

@@ -1,5 +1,5 @@
-// Tests for MR-1: the MiniGitRepository constructor.
-// MR-2, MR-3 and MR-4 add their tests to this file.
+// Tests for MiniGitRepository: MR-1 (constructor), MR-2 to MR-4 (init and
+// repository checks) and MR-5a (checking a file to add).
 
 #include "MiniGitRepository.hpp"
 
@@ -275,6 +275,109 @@ void testRequireRepository() {
 
 } // namespace
 
+// MR-5a helper: create a file with some text, making parent folders.
+void writeFile(const fs::path& file, const std::string& text) {
+    fs::create_directories(file.parent_path());
+    std::ofstream output(file, std::ios::binary);
+    output << text;
+}
+
+// MR-5a helper: the error message checkFileToAdd() throws, or "" if none.
+std::string addError(const minigit::MiniGitRepository& repo,
+                     const std::string& argument) {
+    try {
+        repo.checkFileToAdd(argument);
+    } catch (const std::runtime_error& error) {
+        return error.what();
+    }
+    return "";
+}
+
+// MR-5a test 1: a file in the project returns its clean relative path,
+// including a file in a subfolder (with / separators).
+void testCheckFileToAddAcceptsFiles() {
+    TestDirectory folder;
+    const minigit::MiniGitRepository repo(folder.path());
+    writeFile(folder.path() / "notes.txt", "hello");
+    writeFile(folder.path() / "docs" / "a.txt", "nested");
+
+    check(repo.checkFileToAdd("notes.txt") == "notes.txt",
+          "checkFileToAdd() should return notes.txt");
+    check(repo.checkFileToAdd("docs/a.txt") == "docs/a.txt",
+          "checkFileToAdd() should return docs/a.txt with /");
+}
+
+// MR-5a test 2: messy paths are cleaned before they are checked.
+void testCheckFileToAddCleansPaths() {
+    TestDirectory folder;
+    const minigit::MiniGitRepository repo(folder.path());
+    writeFile(folder.path() / "notes.txt", "hello");
+    writeFile(folder.path() / "docs" / "a.txt", "nested");
+
+    check(repo.checkFileToAdd("./notes.txt") == "notes.txt",
+          "./notes.txt should be cleaned to notes.txt");
+    check(repo.checkFileToAdd("docs/../notes.txt") == "notes.txt",
+          "docs/../notes.txt should be cleaned to notes.txt");
+    check(repo.checkFileToAdd("docs//a.txt") == "docs/a.txt",
+          "docs//a.txt should be cleaned to docs/a.txt");
+}
+
+// MR-5a test 3: a missing file and a folder are rejected with clear errors.
+void testCheckFileToAddRejectsMissingAndFolders() {
+    TestDirectory folder;
+    const minigit::MiniGitRepository repo(folder.path());
+    fs::create_directories(folder.path() / "docs");
+
+    const std::string missing = addError(repo, "missing.txt");
+    check(missing.find("File does not exist") != std::string::npos,
+          "A missing file should report File does not exist");
+    check(missing.find("missing.txt") != std::string::npos,
+          "The missing-file error should name the file");
+
+    const std::string folderError = addError(repo, "docs");
+    check(folderError.find("Cannot add a folder") != std::string::npos,
+          "A folder should report Cannot add a folder");
+}
+
+// MR-5a test 4: empty, absolute, outside-the-project and .minigit paths are
+// rejected, even when the file really exists.
+void testCheckFileToAddRejectsUnsafePaths() {
+    TestDirectory folder;
+    minigit::MiniGitRepository repo(folder.path());
+    repo.initialize();
+    writeFile(folder.path() / "notes.txt", "hello");
+
+    check(!addError(repo, "").empty(), "An empty path should be rejected");
+    check(!addError(repo, "../outside.txt").empty(),
+          "A path outside the project should be rejected");
+    check(!addError(repo, (folder.path() / "notes.txt").string()).empty(),
+          "An absolute path should be rejected");
+    check(!addError(repo, ".minigit/HEAD").empty(),
+          "A path inside .minigit should be rejected");
+    check(!addError(repo, "docs/../.minigit/HEAD").empty(),
+          "A path that cleans to .minigit should be rejected");
+}
+
+// MR-5a test 5: checking never creates or changes anything, even when it
+// succeeds; no .minigit, stage copy or index entry appears.
+void testCheckFileToAddChangesNothing() {
+    TestDirectory folder;
+    const minigit::MiniGitRepository repo(folder.path());
+    writeFile(folder.path() / "notes.txt", "hello");
+
+    repo.checkFileToAdd("notes.txt");
+    addError(repo, "missing.txt");
+
+    int entries = 0;
+    for (const auto& entry : fs::directory_iterator(folder.path())) {
+        (void)entry;
+        ++entries;
+    }
+    check(entries == 1, "checkFileToAdd() should leave only notes.txt");
+    check(!fs::exists(folder.path() / ".minigit"),
+          "checkFileToAdd() should not create .minigit");
+}
+
 int main() {
     testStoresProjectRoot();
     testBuildsRepositoryLocations();
@@ -286,6 +389,11 @@ int main() {
     testInitializeRejectsDamagedRepository();
     testInitializeRejectsMissingHead();
     testRequireRepository();
+    testCheckFileToAddAcceptsFiles();
+    testCheckFileToAddCleansPaths();
+    testCheckFileToAddRejectsMissingAndFolders();
+    testCheckFileToAddRejectsUnsafePaths();
+    testCheckFileToAddChangesNothing();
 
     if (failures > 0) {
         std::cerr << failures << " MiniGitRepository check(s) failed\n";
