@@ -106,6 +106,11 @@ int main() {
     check(entries == originalEntries,
           "contains() should not change the entries");
 
+    // IT-4: Check sorting, duplicate removal, and forward slashes.
+    index.write({"z.txt", "folder\\a.txt", "a.txt", "folder/a.txt"});
+    check(readText(paths.indexFile()) == "a.txt\nfolder/a.txt\nz.txt\n",
+          "write() should save sorted, unique paths with forward slashes");
+
     if (failures != 0) {
         std::cerr << failures << " IndexTable test(s) failed\n";
         return 1;
