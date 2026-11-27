@@ -105,4 +105,25 @@ void MiniGitRepository::requireRepository() const {
     }
 }
 
+// MR-5a: Check the file a user wants to add. Only reads the disk; never
+// creates or changes anything, so a failed add leaves .minigit untouched.
+std::string MiniGitRepository::checkFileToAdd(const std::string& argument) const {
+    // Rejects empty, absolute, outside-the-project and .minigit paths, and
+    // returns the cleaned path with / separators (e.g. "./a.txt" -> "a.txt").
+    const std::string relativePath = paths_.safeRelativeFile(argument);
+    const auto file = paths_.workingFile(relativePath);
+
+    if (!std::filesystem::exists(file)) {
+        throw std::runtime_error("File does not exist: " + relativePath);
+    }
+    if (std::filesystem::is_directory(file)) {
+        throw std::runtime_error("Cannot add a folder: " + relativePath);
+    }
+    if (!std::filesystem::is_regular_file(file)) {
+        throw std::runtime_error("Not a regular file: " + relativePath);
+    }
+
+    return relativePath;
+}
+
 } // namespace minigit
