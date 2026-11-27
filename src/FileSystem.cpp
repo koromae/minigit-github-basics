@@ -42,8 +42,9 @@ void FileSystem::copy(const std::filesystem::path& source,
     if (!parent.empty()) {
         std::filesystem::create_directories(parent);
     }
-
-    std::filesystem::copy_file(source, target);
+  //Fs-20: Replace the destination when it already exists.
+    std::filesystem::copy_file(source, target,std::filesystem::copy_options::overwrite_existing);
 }
+
 
 } // namespace minigit

@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 
+#include <algorithm>
 #include <sstream>
 
 namespace minigit {
@@ -54,6 +55,12 @@ std::vector<std::string> IndexTable::read() const {
     }
 
     return entries;
+}
+
+// IT-3: Check whether a path is already tracked.
+bool IndexTable::contains(const std::vector<std::string>& entries,
+                          const std::string& path) {
+    return std::find(entries.begin(), entries.end(), path) != entries.end();
 }
 
 } // namespace minigit

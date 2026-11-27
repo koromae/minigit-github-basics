@@ -91,6 +91,21 @@ int main() {
     check(readText(paths.indexFile()) == windowsLines,
           "read() should not change the index file");
 
+    // IT-3: Check whether paths are already tracked.
+    const std::vector<std::string> entries{
+        "first.txt", "folder/second.txt", "third.txt"};
+    const auto originalEntries = entries;
+    check(minigit::IndexTable::contains(entries, "folder/second.txt"),
+          "contains() should find an existing path");
+    check(!minigit::IndexTable::contains(entries, "missing.txt"),
+          "contains() should return false for a missing path");
+    check(!minigit::IndexTable::contains({}, "first.txt"),
+          "contains() should return false for empty entries");
+    check(minigit::IndexTable::contains(entries, "third.txt"),
+          "contains() should find a path among multiple entries");
+    check(entries == originalEntries,
+          "contains() should not change the entries");
+
     // IT-4: Check sorting, duplicate removal, and forward slashes.
     index.write({"z.txt", "folder\\a.txt", "a.txt", "folder/a.txt"});
     check(readText(paths.indexFile()) == "a.txt\nfolder/a.txt\nz.txt\n",
