@@ -49,7 +49,7 @@ std::string firstMissingPart(const RepositoryPaths& paths) {
 // MR-1: Store the project root in RepositoryPaths. Only builds paths;
 // nothing is created on disk until initialize() (MR-3) runs.
 MiniGitRepository::MiniGitRepository(const std::filesystem::path& projectRoot)
-    : paths_(projectRoot) {}
+    : paths_(projectRoot), files_(), index_(paths_, files_) {}
 
 // MR-1: Give callers (CommandLineApp, tests) read-only access to the locations.
 const RepositoryPaths& MiniGitRepository::paths() const {
@@ -121,6 +121,26 @@ std::string MiniGitRepository::checkFileToAdd(const std::string& argument) const
     }
     if (!std::filesystem::is_regular_file(file)) {
         throw std::runtime_error("Not a regular file: " + relativePath);
+    }
+
+    return relativePath;
+}
+
+// MR-5b: Add one file to the Stage and the index. Every check runs first, so
+// a failed add changes nothing; only then is the file copied and recorded.
+std::string MiniGitRepository::addFile(const std::string& argument) {
+    requireRepository();
+    const std::string relativePath = checkFileToAdd(argument);
+
+    // Copy into .minigit/stage/<path>, replacing an older staged copy.
+    files_.copy(paths_.workingFile(relativePath),
+                paths_.stageFile(relativePath));
+
+    // Record the path once; an already tracked path leaves index.txt as is.
+    std::vector<std::string> entries = index_.read();
+    if (!IndexTable::contains(entries, relativePath)) {
+        entries.push_back(relativePath);
+        index_.write(entries);
     }
 
     return relativePath;

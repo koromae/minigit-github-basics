@@ -1,14 +1,17 @@
 // Tests for MiniGitRepository: MR-1 (constructor), MR-2 to MR-4 (init and
-// repository checks) and MR-5a (checking a file to add).
+// repository checks), MR-5a (checking a file to add) and MR-5b (addFile).
 
 #include "MiniGitRepository.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <iterator>
 #include <stdexcept>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -378,6 +381,134 @@ void testCheckFileToAddChangesNothing() {
           "checkFileToAdd() should not create .minigit");
 }
 
+// MR-5b helper: the whole content of a file, or "" if it does not exist.
+std::string fileText(const fs::path& file) {
+    std::ifstream input(file, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(input),
+                       std::istreambuf_iterator<char>());
+}
+
+// MR-5b helper: every file and folder under a folder, as sorted generic paths.
+std::vector<std::string> listAll(const fs::path& folder) {
+    std::vector<std::string> paths;
+    if (fs::exists(folder)) {
+        for (const auto& entry : fs::recursive_directory_iterator(folder)) {
+            paths.push_back(fs::relative(entry.path(), folder).generic_string());
+        }
+    }
+    std::sort(paths.begin(), paths.end());
+    return paths;
+}
+
+// MR-5b test 1: a new file is copied to the Stage and its path added to the
+// index; addFile() returns the clean path.
+void testAddFileNewFile() {
+    TestDirectory folder;
+    minigit::MiniGitRepository repo(folder.path());
+    repo.initialize();
+    writeFile(folder.path() / "notes.txt", "hello");
+
+    check(repo.addFile("notes.txt") == "notes.txt",
+          "addFile() should return notes.txt");
+    check(fileText(repo.paths().stageFile("notes.txt")) == "hello",
+          "addFile() should copy the file into the Stage");
+    check(fileText(repo.paths().indexFile()) == "notes.txt\n",
+          "addFile() should add notes.txt to the index");
+    check(fileText(folder.path() / "notes.txt") == "hello",
+          "addFile() should not change the original file");
+}
+
+// MR-5b test 2: adding the same file again replaces the staged copy and does
+// not duplicate the index entry; a changed file stages its new content.
+void testAddFileAgain() {
+    TestDirectory folder;
+    minigit::MiniGitRepository repo(folder.path());
+    repo.initialize();
+    writeFile(folder.path() / "notes.txt", "first");
+
+    repo.addFile("notes.txt");
+    repo.addFile("notes.txt");
+    check(fileText(repo.paths().indexFile()) == "notes.txt\n",
+          "Adding the same file twice should not duplicate the index entry");
+
+    writeFile(folder.path() / "notes.txt", "second");
+    repo.addFile("./notes.txt");
+    check(fileText(repo.paths().stageFile("notes.txt")) == "second",
+          "Adding a changed file should replace the staged copy");
+    check(fileText(repo.paths().indexFile()) == "notes.txt\n",
+          "Adding a changed file should leave the index unchanged");
+}
+
+// MR-5b test 3: a file in a subfolder is staged at the same relative path,
+// and the index stays sorted with / separators.
+void testAddFileSubfolderAndSorting() {
+    TestDirectory folder;
+    minigit::MiniGitRepository repo(folder.path());
+    repo.initialize();
+    writeFile(folder.path() / "z.txt", "z");
+    writeFile(folder.path() / "docs" / "a.txt", "nested");
+    writeFile(folder.path() / "a.txt", "a");
+
+    repo.addFile("z.txt");
+    check(repo.addFile("docs/a.txt") == "docs/a.txt",
+          "addFile() should return docs/a.txt with /");
+    repo.addFile("a.txt");
+
+    check(fileText(repo.paths().stageFile("docs/a.txt")) == "nested",
+          "A subfolder file should be staged at stage/docs/a.txt");
+    check(fileText(repo.paths().indexFile()) == "a.txt\ndocs/a.txt\nz.txt\n",
+          "The index should stay sorted with / separators");
+}
+
+// MR-5b test 4: every error case throws and changes nothing in .minigit.
+void testAddFileErrorsChangeNothing() {
+    TestDirectory folder;
+    minigit::MiniGitRepository repo(folder.path());
+    repo.initialize();
+    writeFile(folder.path() / "notes.txt", "hello");
+    fs::create_directories(folder.path() / "docs");
+    repo.addFile("notes.txt");
+
+    const auto before = listAll(repo.paths().metadataRoot());
+    const std::string indexBefore = fileText(repo.paths().indexFile());
+
+    const std::string badPaths[] = {
+        "", "missing.txt", "docs", "../outside.txt", ".minigit/HEAD"};
+    for (const auto& path : badPaths) {
+        bool threw = false;
+        try {
+            repo.addFile(path);
+        } catch (const std::runtime_error&) {
+            threw = true;
+        }
+        check(threw, "addFile() should throw for a bad path");
+    }
+
+    check(listAll(repo.paths().metadataRoot()) == before,
+          "A failed addFile() should not create or remove anything in .minigit");
+    check(fileText(repo.paths().indexFile()) == indexBefore,
+          "A failed addFile() should not change the index");
+}
+
+// MR-5b test 5: outside a repository, addFile() throws and creates nothing.
+void testAddFileNeedsRepository() {
+    TestDirectory folder;
+    minigit::MiniGitRepository repo(folder.path());
+    writeFile(folder.path() / "notes.txt", "hello");
+
+    std::string message;
+    try {
+        repo.addFile("notes.txt");
+    } catch (const std::runtime_error& error) {
+        message = error.what();
+    }
+
+    check(message.find("Not a valid MiniGit repository") != std::string::npos,
+          "addFile() outside a repository should say so");
+    check(!fs::exists(folder.path() / ".minigit"),
+          "addFile() outside a repository should not create .minigit");
+}
+
 int main() {
     testStoresProjectRoot();
     testBuildsRepositoryLocations();
@@ -394,6 +525,11 @@ int main() {
     testCheckFileToAddRejectsMissingAndFolders();
     testCheckFileToAddRejectsUnsafePaths();
     testCheckFileToAddChangesNothing();
+    testAddFileNewFile();
+    testAddFileAgain();
+    testAddFileSubfolderAndSorting();
+    testAddFileErrorsChangeNothing();
+    testAddFileNeedsRepository();
 
     if (failures > 0) {
         std::cerr << failures << " MiniGitRepository check(s) failed\n";
